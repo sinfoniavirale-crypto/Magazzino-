@@ -11,120 +11,12 @@ import { Share } from "@capacitor/share";
 
 /* ============ INCOLLA QUI I DATI DEL TUO PROGETTO FIREBASE ============ */
 const firebaseConfig = {
-  apiKey:<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyA48uEzeEdSL71G9Ynv_BzwZzfTm_FGyPQ",
-    authDomain: "magazzino-3a6f8.firebaseapp.com",
-    projectId: "magazzino-3a6f8",
-    storageBucket: "magazzino-3a6f8.firebasestorage.app",
-    messagingSenderId: "1068792307356",
-    appId: "1:1068792307356:web:fe3411800d018156891759"
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-</script> ,
-  authDomain:<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyA48uEzeEdSL71G9Ynv_BzwZzfTm_FGyPQ",
-    authDomain: "magazzino-3a6f8.firebaseapp.com",
-    projectId: "magazzino-3a6f8",
-    storageBucket: "magazzino-3a6f8.firebasestorage.app",
-    messagingSenderId: "1068792307356",
-    appId: "1:1068792307356:web:fe3411800d018156891759"
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-</script>,
-  projectId:<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyA48uEzeEdSL71G9Ynv_BzwZzfTm_FGyPQ",
-    authDomain: "magazzino-3a6f8.firebaseapp.com",
-    projectId: "magazzino-3a6f8",
-    storageBucket: "magazzino-3a6f8.firebasestorage.app",
-    messagingSenderId: "1068792307356",
-    appId: "1:1068792307356:web:fe3411800d018156891759"
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-</script> ,
-  storageBucket:<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyA48uEzeEdSL71G9Ynv_BzwZzfTm_FGyPQ",
-    authDomain: "magazzino-3a6f8.firebaseapp.com",
-    projectId: "magazzino-3a6f8",
-    storageBucket: "magazzino-3a6f8.firebasestorage.app",
-    messagingSenderId: "1068792307356",
-    appId: "1:1068792307356:web:fe3411800d018156891759"
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-</script> ,
-  messagingSenderId:<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyA48uEzeEdSL71G9Ynv_BzwZzfTm_FGyPQ",
-    authDomain: "magazzino-3a6f8.firebaseapp.com",
-    projectId: "magazzino-3a6f8",
-    storageBucket: "magazzino-3a6f8.firebasestorage.app",
-    messagingSenderId: "1068792307356",
-    appId: "1:1068792307356:web:fe3411800d018156891759"
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-</script> ,
-  appId:<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyA48uEzeEdSL71G9Ynv_BzwZzfTm_FGyPQ",
-    authDomain: "magazzino-3a6f8.firebaseapp.com",
-    projectId: "magazzino-3a6f8",
-    storageBucket: "magazzino-3a6f8.firebasestorage.app",
-    messagingSenderId: "1068792307356",
-    appId: "1:1068792307356:web:fe3411800d018156891759"
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-</script> ,
+  apiKey: "AIzaSyA48uEzeEdSL71G9Ynv_BzwZzfTm_FGyPQ",
+  authDomain: "magazzino-3a6f8.firebaseapp.com",
+  projectId: "magazzino-3a6f8",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: "",
 };
 /* ===================================================================== */
 
