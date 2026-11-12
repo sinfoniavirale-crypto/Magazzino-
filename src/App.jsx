@@ -31,6 +31,7 @@ if (configured) {
 const LS = "magazzino_login";
 const idOf = (c) => encodeURIComponent(String(c).trim());
 const fmt = (t) => new Date(t).toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" });
+const cmp = (a, b) => a.code.localeCompare(b.code, "it", { numeric: true }) || String(a.name).localeCompare(String(b.name), "it", { numeric: true });
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 const css = `
@@ -128,8 +129,8 @@ function ItemModal({ item, items, sections, onClose, onSave }) {
   const submit = () => {
     const code = f.code.trim(), name = f.name.trim();
     if (!code || !name) return setE("Inserisci almeno codice e nome.");
-    if (isNew && items.some((i) => i.code.toLowerCase() === code.toLowerCase()))
-      return setE("Esiste già un articolo con questo codice.");
+    if (items.some((i) => i.id !== item?.id && i.code.toLowerCase() === code.toLowerCase() && i.name.toLowerCase() === name.toLowerCase()))
+      return setE("Esiste già un articolo con questo codice e questo nome.");
     onSave({
       code, name, desc: f.desc.trim(), section: f.section.trim(),
       qty: Math.max(0, parseInt(f.qty) || 0), min: Math.max(0, parseInt(f.min) || 0),
@@ -140,7 +141,7 @@ function ItemModal({ item, items, sections, onClose, onSave }) {
       <div className="md" onClick={(ev) => ev.stopPropagation()}>
         <h2>{isNew ? "Nuovo articolo" : "Modifica articolo"}</h2>
         <label>Codice</label>
-        <input value={f.code} onChange={set("code")} disabled={!isNew} />
+        <input value={f.code} onChange={set("code")} />
         <label>Nome</label>
         <input value={f.name} onChange={set("name")} />
         <label>Descrizione</label>
@@ -233,7 +234,7 @@ export default function App() {
   useEffect(() => {
     if (!configured || !ready || !login) return;
     const u1 = onSnapshot(col("articoli"), { includeMetadataChanges: true },
-      (s) => { setItems(s.docs.map((d) => d.data())); setPending(s.metadata.hasPendingWrites); },
+      (s) => { setItems(s.docs.map((d) => ({ ...d.data(), id: d.id }))); setPending(s.metadata.hasPendingWrites); },
       (e) => toast("Errore di accesso ai dati: controlla le regole Firestore"));
     const u2 = onSnapshot(query(col("movimenti"), orderBy("t", "desc"), limit(300)),
       (s) => setMoves(s.docs.map((d) => d.data())), () => {});
@@ -250,7 +251,7 @@ export default function App() {
     return items
       .filter((i) => (!sec || i.section === sec) && (!lowOnly || isLow(i)) &&
         (!s || [i.code, i.name, i.desc].join(" ").toLowerCase().includes(s)))
-      .sort((a, b) => a.code.localeCompare(b.code, "it", { numeric: true }));
+      .sort(cmp);
   }, [items, q, sec, lowOnly]);
 
   const doLogin = (l) => { localStorage.setItem(LS, JSON.stringify(l)); setLogin(l); };
@@ -259,17 +260,18 @@ export default function App() {
     localStorage.removeItem(LS); setLogin(null); setItems([]); setMoves([]); setMenu(false);
   };
 
-  const saveItem = (d, isNew) => {
+  const saveItem = (d, isNew, old) => {
     const b = writeBatch(db);
-    const r = ref("articoli", idOf(d.code));
+    const itemId = isNew ? idOf(d.code) + "|" + idOf(d.name) : old.id;
+    const r = ref("articoli", itemId);
     if (isNew) {
-      b.set(r, { code: d.code, name: d.name, desc: d.desc, section: d.section, qty: d.qty, min: d.min });
+      b.set(r, { id: itemId, code: d.code, name: d.name, desc: d.desc, section: d.section, qty: d.qty, min: d.min });
       if (d.qty > 0) {
         const id = newId();
         b.set(ref("movimenti", id), { id, t: Date.now(), code: d.code, name: d.name, type: "init", qty: d.qty, after: d.qty, note: "Giacenza iniziale", by: login.name });
       }
     } else {
-      b.update(r, { name: d.name, desc: d.desc, section: d.section, min: d.min });
+      b.update(r, { code: d.code, name: d.name, desc: d.desc, section: d.section, min: d.min });
     }
     b.commit().catch(() => toast("Salvataggio non riuscito"));
     setItemForm(null);
@@ -277,14 +279,14 @@ export default function App() {
 
   const delItem = (i) => {
     if (window.confirm(`Eliminare l'articolo ${i.code}? Lo storico dei movimenti resta salvato.`))
-      deleteDoc(ref("articoli", idOf(i.code))).catch(() => toast("Eliminazione non riuscita"));
+      deleteDoc(ref("articoli", i.id)).catch(() => toast("Eliminazione non riuscita"));
   };
 
   const doMove = (it, type, n, note) => {
     const d = type === "in" ? n : -n;
     const id = newId();
     const b = writeBatch(db);
-    b.update(ref("articoli", idOf(it.code)), { qty: increment(d) });
+    b.update(ref("articoli", it.id), { qty: increment(d) });
     b.set(ref("movimenti", id), { id, t: Date.now(), code: it.code, name: it.name, type, qty: n, after: it.qty + d, note, by: login.name });
     b.commit().catch(() => toast("Movimento non riuscito"));
     setMv(null);
@@ -309,7 +311,7 @@ export default function App() {
     setMenu(false);
     const c = (s) => '"' + String(s ?? "").replace(/"/g, '""') + '"';
     const rows = [["Codice", "Nome", "Descrizione", "Sezione", "Quantità", "Scorta minima"],
-      ...[...items].sort((a, b) => a.code.localeCompare(b.code, "it", { numeric: true }))
+      ...[...items].sort(cmp)
         .map((i) => [i.code, i.name, i.desc, i.section, i.qty, i.min || 0])];
     shareFile("magazzino.csv", "\uFEFF" + rows.map((r) => r.map(c).join(";")).join("\r\n"));
   };
@@ -330,8 +332,8 @@ export default function App() {
       if (!Array.isArray(d.items) || !Array.isArray(d.moves)) throw 0;
       if (!window.confirm(`Importare ${d.items.length} articoli e ${d.moves.length} movimenti? Gli articoli con lo stesso codice vengono sovrascritti.`)) return;
       const ops = [];
-      d.items.forEach((i) => ops.push((b) => b.set(ref("articoli", idOf(i.code)),
-        { code: i.code, name: i.name || "", desc: i.desc || "", section: i.section || "", qty: Number(i.qty) || 0, min: Number(i.min) || 0 })));
+      d.items.forEach((i) => ops.push((b) => b.set(ref("articoli", i.id || idOf(i.code)),
+        { id: i.id || idOf(i.code), code: i.code, name: i.name || "", desc: i.desc || "", section: i.section || "", qty: Number(i.qty) || 0, min: Number(i.min) || 0 })));
       d.moves.forEach((m) => { const id = m.id || `${m.t}_${idOf(m.code)}`; ops.push((b) => b.set(ref("movimenti", id), { ...m, id })); });
       toast("Importazione in corso…");
       for (let k = 0; k < ops.length; k += 400) {
@@ -397,7 +399,7 @@ export default function App() {
                 <div className="empty">{items.length ? "Nessun articolo corrisponde alla ricerca." : "Il magazzino è vuoto. Premi «+ Nuovo» per iniziare."}</div>
               )}
               {list.map((i) => (
-                <div key={i.code} className={"card" + (isLow(i) ? " low" : "")}>
+                <div key={i.id} className={"card" + (isLow(i) ? " low" : "")}>
                   <div className="top">
                     <div><div className="code">{i.code}</div><div className="nm">{i.name}</div></div>
                     <div className="qty"><b>{i.qty}</b><small>min {i.min || 0}</small></div>
@@ -433,7 +435,7 @@ export default function App() {
           )}
 
           {tab === "art" && <button className="b pri fab" onClick={() => setItemForm({ item: null })}>+ Nuovo</button>}
-          {itemForm && <ItemModal item={itemForm.item} items={items} sections={sections} onClose={() => setItemForm(null)} onSave={saveItem} />}
+          {itemForm && <ItemModal item={itemForm.item} items={items} sections={sections} onClose={() => setItemForm(null)} onSave={(d, n) => saveItem(d, n, itemForm.item)} />}
           {mv && <MoveModal it={mv.it} type={mv.type} onClose={() => setMv(null)} onOk={(n, note) => doMove(mv.it, mv.type, n, note)} />}
         </div>
       )}
