@@ -3,7 +3,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import {
   initializeFirestore, persistentLocalCache, collection, doc, onSnapshot,
-  query, orderBy, limit, writeBatch, increment, deleteDoc, getDocs,
+  query, orderBy, limit, where, writeBatch, increment, deleteDoc, getDocs,
 } from "firebase/firestore";
 import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
@@ -70,7 +70,8 @@ input,select,textarea{font:inherit;padding:11px 12px;border:1px solid var(--line
 .desc{color:var(--mut);margin-top:6px;font-size:14px}
 .meta{margin-top:6px;font-size:14px;color:var(--mut)}
 .badge{margin-left:8px;padding:1px 8px;border-radius:10px;background:var(--out);color:#fff;font-size:12px;font-weight:600}
-.acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.acts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.acts .b{padding:11px 4px;font-size:15px}
 .acts .sm{grid-column:span 1}
 .b{font:inherit;padding:11px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
 .b.pri{background:var(--acc);border-color:var(--acc);color:#1d2733;font-weight:700}
@@ -192,6 +193,55 @@ function MoveModal({ it, type, onClose, onOk }) {
   );
 }
 
+function HistoryModal({ it, col, onClose }) {
+  const [rows, setRows] = useState(null);
+  const [onlyOut, setOnlyOut] = useState(true);
+  const [asc, setAsc] = useState(false);
+  useEffect(() => {
+    return onSnapshot(
+      query(col("movimenti"), where("code", "==", it.code)),
+      (s) => setRows(s.docs.map((d) => d.data()).filter((m) => (m.itemId ? m.itemId === it.id : m.name === it.name))),
+      () => setRows([])
+    );
+  }, [it.id]);
+  const all = rows || [];
+  const outs = all.filter((m) => m.type === "out");
+  const tot = outs.reduce((s, m) => s + m.qty, 0);
+  const shown = (onlyOut ? outs : all).slice().sort((a, b) => (asc ? a.t - b.t : b.t - a.t));
+  return (
+    <div className="ov" onClick={onClose}>
+      <div className="md" onClick={(ev) => ev.stopPropagation()}>
+        <h2>Storico articolo</h2>
+        <div className="hint"><b>{it.code} · {it.name}</b></div>
+        <div className="hint">
+          {rows === null ? "Caricamento…" : `Consumati in totale: ${tot} pezzi in ${outs.length} scarichi` + (outs.length ? ` · ultimo: ${fmt(Math.max(...outs.map((m) => m.t)))}` : "")}
+        </div>
+        <div className="row" style={{ marginTop: 10 }}>
+          <button className={"b" + (onlyOut ? " pri" : "")} onClick={() => setOnlyOut(true)}>Solo scarichi</button>
+          <button className={"b" + (!onlyOut ? " pri" : "")} onClick={() => setOnlyOut(false)}>Tutti i movimenti</button>
+        </div>
+        <div className="row" style={{ marginTop: 8 }}>
+          <button className="b" onClick={() => setAsc(!asc)}>{asc ? "Dal più vecchio ↑" : "Dal più recente ↓"}</button>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          {rows !== null && shown.length === 0 && <div className="empty">Nessun movimento.</div>}
+          {shown.map((m, k) => (
+            <div className="mv" key={m.id || k}>
+              <div className="l1">
+                <span>{fmt(m.t)}</span>
+                <span className={m.type === "out" ? "tout" : "tin"}>{m.type === "out" ? "-" : "+"}{m.qty}</span>
+              </div>
+              <small>{!onlyOut ? (m.type === "in" ? "Carico · " : m.type === "out" ? "Scarico · " : "Giacenza iniziale · ") : ""}giacenza dopo: {m.after}{m.by ? " · " + m.by : ""}</small>
+              {m.note && m.type !== "init" && <div><small>{m.note}</small></div>}
+            </div>
+          ))}
+        </div>
+        <div className="row"><button className="b" onClick={onClose}>Chiudi</button></div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [login, setLogin] = useState(() => {
     try { return JSON.parse(localStorage.getItem(LS)); } catch (e) { return null; }
@@ -209,6 +259,8 @@ export default function App() {
   const [menu, setMenu] = useState(false);
   const [itemForm, setItemForm] = useState(null);
   const [mv, setMv] = useState(null);
+  const [hist, setHist] = useState(null);
+  const [mt, setMt] = useState("all");
   const [msg, setMsg] = useState("");
 
   const wid = login ? encodeURIComponent(login.code.trim().toLowerCase()) : "";
@@ -268,7 +320,7 @@ export default function App() {
       b.set(r, { id: itemId, code: d.code, name: d.name, desc: d.desc, section: d.section, qty: d.qty, min: d.min });
       if (d.qty > 0) {
         const id = newId();
-        b.set(ref("movimenti", id), { id, t: Date.now(), code: d.code, name: d.name, type: "init", qty: d.qty, after: d.qty, note: "Giacenza iniziale", by: login.name });
+        b.set(ref("movimenti", id), { id, itemId, t: Date.now(), code: d.code, name: d.name, type: "init", qty: d.qty, after: d.qty, note: "Giacenza iniziale", by: login.name });
       }
     } else {
       b.update(r, { code: d.code, name: d.name, desc: d.desc, section: d.section, min: d.min });
@@ -287,7 +339,7 @@ export default function App() {
     const id = newId();
     const b = writeBatch(db);
     b.update(ref("articoli", it.id), { qty: increment(d) });
-    b.set(ref("movimenti", id), { id, t: Date.now(), code: it.code, name: it.name, type, qty: n, after: it.qty + d, note, by: login.name });
+    b.set(ref("movimenti", id), { id, itemId: it.id, t: Date.now(), code: it.code, name: it.name, type, qty: n, after: it.qty + d, note, by: login.name });
     b.commit().catch(() => toast("Movimento non riuscito"));
     setMv(null);
     if (type === "out" && (it.min || 0) > 0 && it.qty + d <= it.min)
@@ -345,6 +397,7 @@ export default function App() {
     } catch (e) { toast("File di backup non valido"); }
   };
 
+  const shownMoves = moves.filter((m) => mt === "all" || (mt === "out" ? m.type === "out" : m.type !== "out"));
   const status = !ready ? (authErr || "Connessione…") : pending ? "Invio in corso…" : !online ? "Offline: salvo sul telefono" : "Sincronizzato";
 
   return (
@@ -409,6 +462,7 @@ export default function App() {
                   <div className="acts">
                     <button className="b in" onClick={() => setMv({ it: i, type: "in" })}>Carico</button>
                     <button className="b out" onClick={() => setMv({ it: i, type: "out" })}>Scarico</button>
+                    <button className="b" onClick={() => setHist(i)}>Storico</button>
                     <button className="b" onClick={() => setItemForm({ item: i })}>Modifica</button>
                     <button className="b" onClick={() => delItem(i)}>Elimina</button>
                   </div>
@@ -420,8 +474,13 @@ export default function App() {
 
           {tab === "sto" && (
             <div className="pad">
-              {moves.length === 0 && <div className="empty">Nessun movimento registrato.</div>}
-              {moves.map((m, k) => (
+              <div className="row" style={{ marginTop: 0, marginBottom: 10 }}>
+                <button className={"b" + (mt === "all" ? " pri" : "")} onClick={() => setMt("all")}>Tutti</button>
+                <button className={"b" + (mt === "out" ? " pri" : "")} onClick={() => setMt("out")}>Scarichi</button>
+                <button className={"b" + (mt === "in" ? " pri" : "")} onClick={() => setMt("in")}>Carichi</button>
+              </div>
+              {shownMoves.length === 0 && <div className="empty">Nessun movimento registrato.</div>}
+              {shownMoves.map((m, k) => (
                 <div className="mv" key={m.id || k}>
                   <div className="l1">
                     <span className="code">{m.code} · {m.name}</span>
@@ -437,6 +496,7 @@ export default function App() {
           {tab === "art" && <button className="b pri fab" onClick={() => setItemForm({ item: null })}>+ Nuovo</button>}
           {itemForm && <ItemModal item={itemForm.item} items={items} sections={sections} onClose={() => setItemForm(null)} onSave={(d, n) => saveItem(d, n, itemForm.item)} />}
           {mv && <MoveModal it={mv.it} type={mv.type} onClose={() => setMv(null)} onOk={(n, note) => doMove(mv.it, mv.type, n, note)} />}
+          {hist && <HistoryModal it={hist} col={col} onClose={() => setHist(null)} />}
         </div>
       )}
       {msg && <div className="toast">{msg}</div>}
